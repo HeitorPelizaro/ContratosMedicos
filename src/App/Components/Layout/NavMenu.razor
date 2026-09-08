@@ -1,0 +1,39 @@
+@using ContratosMedicos.Dados
+@inject RepositorioContratos Repositorio
+@inject ServicoConfiguracoes Configuracoes
+@inject EstadoDaSessao Estado
+
+<nav class="menu">
+    <div class="menu-marca">
+        <strong>Controle de Contratos</strong>
+        <span>Contratos médicos</span>
+    </div>
+
+    <div class="menu-itens">
+        <NavLink class="menu-item" href="" Match="NavLinkMatch.All" ActiveClass="menu-item ativo">Painel</NavLink>
+        <NavLink class="menu-item" href="contratos" ActiveClass="menu-item ativo">Contratos</NavLink>
+        <NavLink class="menu-item" href="atencao" ActiveClass="menu-item ativo">
+            Atenção
+            @if (_urgentes > 0)
+            {
+                <span class="contador">@_urgentes</span>
+            }
+        </NavLink>
+        <NavLink class="menu-item" href="indicadores" ActiveClass="menu-item ativo">Indicadores</NavLink>
+    </div>
+
+    <div class="menu-rodape">
+        <NavLink class="menu-item" href="importar" ActiveClass="menu-item ativo">Importar planilha</NavLink>
+        <NavLink class="menu-item" href="configuracoes" ActiveClass="menu-item ativo">Configurações</NavLink>
+    </div>
+</nav>
+
+@code {
+    private int _urgentes;
+
+    protected override void OnInitialized()
+    {
+        ResumoPainel resumo = Repositorio.Resumo(Estado.Hoje, Configuracoes.DiasAlerta);
+        _urgentes = resumo.Vencidos + resumo.AVencer;
+    }
+}

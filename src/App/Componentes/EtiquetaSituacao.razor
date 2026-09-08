@@ -1,0 +1,8 @@
+<span class="etiqueta">
+    <span class="ponto" style="background:@DescricoesSituacao.Cor(Situacao)"></span>
+    @DescricoesSituacao.Rotulo(Situacao)
+</span>
+
+@code {
+    [Parameter, EditorRequired] public Situacao Situacao { get; set; }
+}

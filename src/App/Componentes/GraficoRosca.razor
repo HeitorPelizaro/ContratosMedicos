@@ -1,0 +1,43 @@
+@* Rosca em SVG puro: sem biblioteca, sem CDN, funciona offline. *@
+<div class="rosca">
+    <svg viewBox="0 0 42 42" width="180" height="180" role="img" aria-label="Contratos por situação">
+        <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--cor-neutra-clara)" stroke-width="6" />
+        @{
+            double acumulado = 0;
+            double total = Fatias.Sum(f => f.Valor);
+        }
+        @if (total > 0)
+        {
+            @foreach (var fatia in Fatias.Where(f => f.Valor > 0))
+            {
+                double porcentagem = fatia.Valor * 100.0 / total;
+                <circle cx="21" cy="21" r="15.9" fill="none"
+                        stroke="@fatia.Cor" stroke-width="6"
+                        stroke-dasharray="@($"{porcentagem:0.##} {100 - porcentagem:0.##}")"
+                        stroke-dashoffset="@($"{25 - acumulado:0.##}")"
+                        transform="rotate(0 21 21)">
+                    <title>@fatia.Rotulo: @fatia.Valor</title>
+                </circle>
+                acumulado += porcentagem;
+            }
+        }
+    </svg>
+
+    <ul class="legenda-rosca">
+        @foreach (var fatia in Fatias.Where(f => f.Valor > 0).OrderByDescending(f => f.Valor))
+        {
+            <li>
+                <span class="etiqueta">
+                    <span class="ponto" style="background:@fatia.Cor"></span>@fatia.Rotulo
+                </span>
+                <strong class="numero">@fatia.Valor</strong>
+            </li>
+        }
+    </ul>
+</div>
+
+@code {
+    public record Fatia(string Rotulo, int Valor, string Cor);
+
+    [Parameter, EditorRequired] public IReadOnlyList<Fatia> Fatias { get; set; } = Array.Empty<Fatia>();
+}

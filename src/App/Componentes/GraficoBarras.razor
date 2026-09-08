@@ -1,0 +1,18 @@
+<div class="barras">
+    @{ int maior = Math.Max(1, Colunas.Max(c => c.Valor)); }
+    @foreach (var coluna in Colunas)
+    {
+        <div class="barra-coluna">
+            <span class="barra-valor numero">@coluna.Valor</span>
+            <div class="barra" style="height:@($"{coluna.Valor * 100.0 / maior:0.##}%")"
+                 title="@coluna.Rotulo: @coluna.Valor"></div>
+            <span class="barra-rotulo">@coluna.Rotulo</span>
+        </div>
+    }
+</div>
+
+@code {
+    public record Coluna(string Rotulo, int Valor);
+
+    [Parameter, EditorRequired] public IReadOnlyList<Coluna> Colunas { get; set; } = Array.Empty<Coluna>();
+}

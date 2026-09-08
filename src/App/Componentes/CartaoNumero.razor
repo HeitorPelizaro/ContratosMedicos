@@ -1,0 +1,17 @@
+<a class="cartao @Tom" href="@Destino">
+    <span class="cartao-rotulo">@Rotulo</span>
+    <span class="cartao-numero">@Numero</span>
+    @if (!string.IsNullOrEmpty(Nota))
+    {
+        <span class="cartao-nota">@Nota</span>
+    }
+</a>
+
+@code {
+    [Parameter, EditorRequired] public string Rotulo { get; set; } = "";
+    [Parameter, EditorRequired] public int Numero { get; set; }
+    [Parameter] public string Destino { get; set; } = "contratos";
+    [Parameter] public string Nota { get; set; } = "";
+    /// <summary>"ok", "atencao", "perigo" ou vazio.</summary>
+    [Parameter] public string Tom { get; set; } = "";
+}

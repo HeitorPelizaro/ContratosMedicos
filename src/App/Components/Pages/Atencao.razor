@@ -1,0 +1,62 @@
+@page "/atencao"
+@inject RepositorioContratos Repositorio
+@inject ServicoConfiguracoes Configuracoes
+@inject EstadoDaSessao Estado
+
+<div class="cabecalho-pagina">
+    <div>
+        <h1>Atenção</h1>
+        <p>O que precisa de providência, do mais urgente para o menos.</p>
+    </div>
+</div>
+
+@if (_fila.Count == 0)
+{
+    <div class="bloco vazio">
+        <strong>Está tudo em dia</strong>
+        Nenhum contrato vencido, nenhum vencendo nos próximos @Configuracoes.DiasAlerta dias
+        e nenhum aditivo aguardando assinatura.
+    </div>
+}
+else
+{
+    @foreach (IGrouping<MotivoAtencao, ItemAtencao> grupo in _fila.GroupBy(i => i.Motivo))
+    {
+        <section class="bloco" style="margin-bottom:var(--espaco-4)">
+            <h2>@TituloDoGrupo(grupo.Key) (@grupo.Count())</h2>
+            <div class="lista-itens" style="margin-top:var(--espaco-4)">
+                @foreach (ItemAtencao item in grupo)
+                {
+                    <div class="item-linha">
+                        <span class="tarja" style="background:@DescricoesSituacao.Cor(item.Contrato.Situacao)"></span>
+                        <span class="cresce">
+                            <strong>@(item.Contrato.Profissional ?? "Sem profissional")</strong>
+                            <span class="cartao-nota"> — @(item.Contrato.Empresa ?? "sem empresa")</span>
+                            <br />
+                            <span class="cartao-nota">@item.Explicacao</span>
+                        </span>
+                        <a class="botao" href="@($"contratos?busca={Uri.EscapeDataString(item.Contrato.Profissional ?? "")}")">
+                            Abrir contrato
+                        </a>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+}
+
+@code {
+    private List<ItemAtencao> _fila = new();
+
+    protected override void OnInitialized() =>
+        _fila = FilaDeAtencao.Montar(Repositorio.Todos(), Estado.Hoje, Configuracoes.DiasAlerta);
+
+    private static string TituloDoGrupo(MotivoAtencao motivo) => motivo switch
+    {
+        MotivoAtencao.Vencido => "Vigência vencida",
+        MotivoAtencao.VenceEmBreve => "Vence em breve",
+        MotivoAtencao.AditivoPendente => "Aditivos aguardando assinatura",
+        MotivoAtencao.Inconsistencia => "Informação conflitante",
+        _ => "Sem data de vigência",
+    };
+}

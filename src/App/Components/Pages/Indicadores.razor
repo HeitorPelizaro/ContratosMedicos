@@ -1,0 +1,222 @@
+@page "/indicadores"
+@inject RepositorioIndicadores RepositorioIndicadores
+@inject EstadoDaSessao Estado
+@inject IJSRuntime Js
+
+<div class="cabecalho-pagina">
+    <div>
+        <h1>Indicadores</h1>
+        <p>O relatório mensal de médicos x contratos assinados para a gerência.</p>
+    </div>
+    <div style="display:flex;gap:var(--espaco-3)">
+        <button class="botao" @onclick="Copiar">Copiar para o e-mail</button>
+        <button class="botao botao-primario" @onclick="Exportar">Exportar Excel</button>
+    </div>
+</div>
+
+<div class="barra-filtros">
+    <div class="campo">
+        <label for="mes">Mês de referência</label>
+        <input id="mes" type="month" value="@($"{_ano:0000}-{_mes:00}")" @onchange="AoMudarMes" />
+    </div>
+</div>
+
+@if (_apresentado is null)
+{
+    <div class="bloco"><div class="esqueleto" style="width:40%"></div></div>
+}
+else
+{
+    <section class="bloco">
+        <h2>Posição no fim de @_apresentado.Indicadores.NomeDoMes</h2>
+        <div class="cartoes" style="margin-top:var(--espaco-4)">
+            <div class="cartao"><span class="cartao-rotulo">Médicos</span>
+                <span class="cartao-numero">@_apresentado.Indicadores.MedicosDistintos</span>
+                <span class="cartao-nota">profissionais distintos</span></div>
+            <div class="cartao"><span class="cartao-rotulo">Contratos cadastrados</span>
+                <span class="cartao-numero">@_apresentado.Indicadores.ContratosTotal</span></div>
+            <div class="cartao ok"><span class="cartao-rotulo">Contratos assinados</span>
+                <span class="cartao-numero">@_apresentado.Indicadores.ContratosAssinadosAte</span>
+                <span class="cartao-nota">
+                    por data de assinatura, até @_apresentado.Indicadores.Corte.ToString("dd/MM/yyyy")
+                </span></div>
+            <div class="cartao ok"><span class="cartao-rotulo">Médicos com contrato assinado</span>
+                <span class="cartao-numero">@_apresentado.Indicadores.MedicosComContratoAssinado</span></div>
+            <div class="cartao"><span class="cartao-rotulo">Cobertura</span>
+                <span class="cartao-numero">@Cobertura()</span></div>
+        </div>
+
+        <p class="cartao-nota" style="margin-top:var(--espaco-4)">
+            @if (_apresentado.VeioDeFoto)
+            {
+                <span>
+                    ✓ Números fechados, fotografados em
+                    @_apresentado.FotografadoEm!.Value.ToString("dd/MM/yyyy 'às' HH:mm").
+                    Não mudam mais, mesmo que o cadastro mude depois.
+                </span>
+            }
+            else
+            {
+                <span>
+                    ● Mês ainda aberto: os números mudam conforme você cadastra e dá baixa em
+                    assinaturas. Quando o mês virar, eles são fotografados e param de mudar.
+                </span>
+            }
+        </p>
+
+        <p class="cartao-nota" style="margin-top:var(--espaco-3)">
+            Atenção ao comparar com o Painel: aqui "Contratos assinados" olha <strong>só a data
+            de assinatura</strong> do contrato. No Painel, "Assinados" é mais rigoroso — ele
+            também exige que não haja aditivo esperando assinatura. Por isso o Painel costuma
+            mostrar um número menor. É de propósito: a foto do mês precisa continuar valendo o
+            que valia naquele dia, e um aditivo que chegou depois não pode mexer num número que
+            você já mandou para a gerência.
+        </p>
+
+        @if (_apresentado.VeioDeFoto)
+        {
+            <div style="margin-top:var(--espaco-4)">
+                @if (_confirmandoRefazer)
+                {
+                    <p class="cartao-nota">
+                        Refazer a foto troca os números fechados de
+                        @_apresentado.Indicadores.NomeDoMes pelos do cadastro de agora.
+                        Se você já enviou este relatório para a gerência, os números vão
+                        passar a ser outros. Não tem como desfazer.
+                    </p>
+                    <div style="display:flex;gap:var(--espaco-3);margin-top:var(--espaco-3)">
+                        <button class="botao" @onclick="() => _confirmandoRefazer = false">Cancelar</button>
+                        <button class="botao botao-perigo" @onclick="RefazerFoto">Sim, refazer a foto</button>
+                    </div>
+                }
+                else
+                {
+                    <button class="botao" @onclick="() => _confirmandoRefazer = true">
+                        Refazer a foto deste mês
+                    </button>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="bloco" style="margin-top:var(--espaco-4)">
+        <h2>Movimento de @_apresentado.Indicadores.NomeDoMes</h2>
+        <div class="cartoes" style="margin-top:var(--espaco-4)">
+            <div class="cartao"><span class="cartao-rotulo">Contratos assinados no mês</span>
+                <span class="cartao-numero">@_apresentado.Indicadores.ContratosAssinadosNoMes</span></div>
+            <div class="cartao"><span class="cartao-rotulo">Médicos envolvidos</span>
+                <span class="cartao-numero">@_apresentado.Indicadores.MedicosDistintosNoMes</span></div>
+            <div class="cartao"><span class="cartao-rotulo">Aditivos assinados no mês</span>
+                <span class="cartao-numero">@_apresentado.Indicadores.AditivosAssinadosNoMes</span></div>
+        </div>
+    </section>
+
+    <section class="bloco" style="margin-top:var(--espaco-4)">
+        <h2>Por especialidade</h2>
+        @if (_apresentado.Indicadores.PorEspecialidade.Count == 0)
+        {
+            <div class="vazio"><strong>Nenhum contrato cadastrado</strong>
+                Importe a planilha para o indicador fazer sentido.</div>
+        }
+        else
+        {
+            <div class="tabela-envolve" style="margin-top:var(--espaco-4)">
+                <table class="tabela">
+                    <thead>
+                        <tr>
+                            <th>Especialidade</th><th>Médicos</th><th>Contratos</th>
+                            <th>Assinados</th><th>Médicos com contrato assinado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (LinhaIndicador linha in _apresentado.Indicadores.PorEspecialidade)
+                        {
+                            <tr>
+                                <td>@linha.Rotulo</td>
+                                <td class="numero">@linha.Medicos</td>
+                                <td class="numero">@linha.Contratos</td>
+                                <td class="numero">@linha.ContratosAssinados</td>
+                                <td class="numero">@linha.MedicosComContratoAssinado</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="cartao-nota" style="margin-top:var(--espaco-3)">
+                A quebra por especialidade usa o cadastro de hoje, não a foto do mês.
+            </p>
+        }
+    </section>
+}
+
+@if (_mensagem is not null)
+{
+    <div class="aviso-salvo">@_mensagem</div>
+}
+
+@code {
+    private int _ano;
+    private int _mes;
+    private IndicadorApresentado? _apresentado;
+    private string? _mensagem;
+    private bool _confirmandoRefazer;
+
+    protected override void OnInitialized()
+    {
+        // Padrão: mês anterior — é o que ela envia para a gerência.
+        DateOnly anterior = new DateOnly(Estado.Hoje.Year, Estado.Hoje.Month, 1).AddMonths(-1);
+        _ano = anterior.Year;
+        _mes = anterior.Month;
+        Carregar();
+    }
+
+    private void Carregar()
+    {
+        _confirmandoRefazer = false;
+        _apresentado = RepositorioIndicadores.Obter(_ano, _mes, Estado.Hoje);
+    }
+
+    private async Task RefazerFoto()
+    {
+        RepositorioIndicadores.RefazerFoto(_ano, _mes);
+        Carregar();
+        _mensagem = "Foto refeita com o cadastro de agora";
+        StateHasChanged();
+        await Task.Delay(1800);
+        _mensagem = null;
+    }
+
+    private void AoMudarMes(ChangeEventArgs evento)
+    {
+        string valor = evento.Value?.ToString() ?? "";
+        if (DateOnly.TryParse(valor + "-01", out DateOnly escolhido))
+        {
+            _ano = escolhido.Year;
+            _mes = escolhido.Month;
+            Carregar();
+        }
+    }
+
+    private string Cobertura() =>
+        _apresentado!.Indicadores.PercentualCobertura is decimal valor
+            ? $"{valor:0.0}%".Replace('.', ',')
+            : "—";
+
+    private async Task Copiar()
+    {
+        string texto = TextoDoIndicador.ParaEmail(_apresentado!.Indicadores);
+        bool copiou = await Js.InvokeAsync<bool>("copiarTexto", texto);
+        _mensagem = copiou ? "Copiado — cole no e-mail" : "Não consegui copiar; use o Exportar Excel";
+        StateHasChanged();
+        await Task.Delay(1800);
+        _mensagem = null;
+    }
+
+    private async Task Exportar()
+    {
+        byte[] bytes = ExportadorIndicadores.Gerar(_apresentado!.Indicadores);
+        await Js.InvokeVoidAsync("baixarArquivo",
+            ExportadorIndicadores.NomeSugerido(_apresentado.Indicadores),
+            Convert.ToBase64String(bytes));
+    }
+}

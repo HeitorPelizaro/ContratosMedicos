@@ -1,0 +1,64 @@
+<div class="bloco">
+    <div class="campos-2">
+        <div class="campo">
+            <label>Tipo do aditivo</label>
+            <select @bind="Aditivo.Tipo">
+                <option value="@TipoAditivo.Vigencia">Vigência (prorrogação de prazo)</option>
+                <option value="@TipoAditivo.Valor">Valor</option>
+                <option value="@TipoAditivo.Tecnico">Técnico</option>
+                <option value="@TipoAditivo.Outro">Outro</option>
+            </select>
+        </div>
+        <div class="campo">
+            <label>Situação</label>
+            <select @bind="Aditivo.Situacao">
+                @foreach (Situacao situacao in DescricoesSituacao.Todas)
+                {
+                    <option value="@situacao">@DescricoesSituacao.Rotulo(situacao)</option>
+                }
+            </select>
+        </div>
+        <div class="campo">
+            <label>Número / identificação</label>
+            <input @bind="Aditivo.Numero" placeholder="Ex.: T.A. 02/2026" />
+        </div>
+        <div class="campo">
+            <label>Data de assinatura</label>
+            <input type="date" @bind="Aditivo.DataAssinatura" />
+        </div>
+
+        @if (Aditivo.Tipo == TipoAditivo.Vigencia)
+        {
+            <div class="campo">
+                <label>Nova vigência (data final)</label>
+                <input type="date" @bind="Aditivo.NovaVigenciaFim" />
+            </div>
+        }
+        @if (Aditivo.Tipo == TipoAditivo.Valor)
+        {
+            <div class="campo">
+                <label>Valor</label>
+                <input type="number" step="0.01" @bind="Aditivo.Valor" />
+            </div>
+        }
+    </div>
+
+    <div class="campo" style="margin-top:var(--espaco-4)">
+        <label>Observação</label>
+        <textarea rows="2" @bind="Aditivo.Observacao"></textarea>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:var(--espaco-4)">
+        <span class="cartao-nota">
+            @(RegrasContrato.AditivoEstaPendente(Aditivo)
+                ? "Este aditivo conta como pendência do contrato."
+                : "Aditivo assinado.")
+        </span>
+        <button class="botao botao-perigo" @onclick="AoRemover">Remover aditivo</button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Aditivo Aditivo { get; set; } = default!;
+    [Parameter] public EventCallback AoRemover { get; set; }
+}

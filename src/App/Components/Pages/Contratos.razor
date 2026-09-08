@@ -1,0 +1,307 @@
+@page "/contratos"
+@using Microsoft.AspNetCore.WebUtilities
+@inject RepositorioContratos Repositorio
+@inject ServicoConfiguracoes Configuracoes
+@inject EstadoDaSessao Estado
+@inject NavigationManager Navegacao
+@inject IJSRuntime Js
+
+<div class="cabecalho-pagina">
+    <div>
+        <h1>Contratos</h1>
+        <p>@_contratos.Count contrato(s) @(_filtro.AlgumFiltroAtivo ? "com os filtros atuais" : "cadastrados").</p>
+    </div>
+    <div style="display:flex;gap:var(--espaco-3)">
+        <button class="botao" @onclick="Exportar">Exportar Excel</button>
+        <button class="botao botao-primario" @onclick="() => AbrirDetalhe(null)">Novo contrato</button>
+    </div>
+</div>
+
+<div class="barra-filtros">
+    <div class="campo busca">
+        <label for="busca">Buscar</label>
+        <input id="busca" placeholder="Profissional, empresa, CNPJ ou código Tasy"
+               value="@_filtro.Busca" @oninput="AoDigitar" />
+    </div>
+
+    <div class="campo">
+        <label for="situacao">Situação</label>
+        <select id="situacao" @onchange="AoMudarSituacao">
+            <option value="">Todas</option>
+            @foreach (Situacao situacao in DescricoesSituacao.Todas)
+            {
+                <option value="@situacao" selected="@(_filtro.Situacao == situacao)">
+                    @DescricoesSituacao.Rotulo(situacao)
+                </option>
+            }
+        </select>
+    </div>
+
+    <div class="campo">
+        <label for="vigencia">Vigência</label>
+        <select id="vigencia" @onchange="AoMudarVigencia">
+            <option value="Todos" selected="@(_filtro.Vigencia == RecorteVigencia.Todos)">Todas</option>
+            <option value="Vencida" selected="@(_filtro.Vigencia == RecorteVigencia.Vencida)">Vencida</option>
+            <option value="AVencer" selected="@(_filtro.Vigencia == RecorteVigencia.AVencer)">
+                Vence em até @Configuracoes.DiasAlerta dias
+            </option>
+            <option value="Vigente" selected="@(_filtro.Vigencia == RecorteVigencia.Vigente)">Em vigência</option>
+            <option value="SemData" selected="@(_filtro.Vigencia == RecorteVigencia.SemData)">Sem data</option>
+        </select>
+    </div>
+
+    <div class="campo">
+        <label for="especialidade">Especialidade</label>
+        <select id="especialidade" @onchange="AoMudarEspecialidade">
+            <option value="">Todas</option>
+            @foreach (string especialidade in Repositorio.Especialidades())
+            {
+                <option value="@especialidade" selected="@(_filtro.Especialidade == especialidade)">@especialidade</option>
+            }
+        </select>
+    </div>
+
+    <div class="campo">
+        <label for="empresa">Empresa</label>
+        <select id="empresa" @onchange="AoMudarEmpresa">
+            <option value="">Todas</option>
+            @foreach (string empresa in Repositorio.Empresas())
+            {
+                <option value="@empresa" selected="@(_filtro.Empresa == empresa)">@empresa</option>
+            }
+        </select>
+    </div>
+</div>
+
+@* Sem isto, clicar num cartão do Painel levava para uma lista parcial com todos os
+   seletores dizendo "Todas" e nenhuma forma de voltar para a lista inteira. *@
+@if (_filtro.AlgumFiltroAtivo)
+{
+    <div class="filtros-ativos">
+        <span class="cartao-nota">Filtrando por:</span>
+        @if (_filtro.Recorte != RecortePainel.Todos)
+        {
+            <span class="etiqueta-filtro">@RotuloRecorte(_filtro.Recorte)</span>
+        }
+        @if (!string.IsNullOrWhiteSpace(_filtro.Busca))
+        {
+            <span class="etiqueta-filtro">busca: “@_filtro.Busca”</span>
+        }
+        @if (_filtro.Situacao is not null)
+        {
+            <span class="etiqueta-filtro">@DescricoesSituacao.Rotulo(_filtro.Situacao.Value)</span>
+        }
+        @if (_filtro.Vigencia != RecorteVigencia.Todos)
+        {
+            <span class="etiqueta-filtro">@RotuloVigencia(_filtro.Vigencia)</span>
+        }
+        @if (_filtro.Especialidade is not null)
+        {
+            <span class="etiqueta-filtro">@_filtro.Especialidade</span>
+        }
+        @if (_filtro.Empresa is not null)
+        {
+            <span class="etiqueta-filtro">@_filtro.Empresa</span>
+        }
+        <button class="botao" @onclick="LimparFiltros">Limpar filtros</button>
+    </div>
+}
+
+@if (_contratos.Count == 0)
+{
+    <div class="bloco vazio">
+        <strong>Nenhum contrato encontrado</strong>
+        @(_filtro.AlgumFiltroAtivo
+            ? "Tente limpar os filtros ou buscar por outro nome."
+            : "Cadastre um contrato ou importe a sua planilha.")
+    </div>
+}
+else
+{
+    <div class="tabela-envolve">
+        <table class="tabela">
+            <thead>
+                <tr>
+                    <th style="width:var(--espaco-2)"></th>
+                    <th @onclick="() => Ordenar(nameof(Contrato.Profissional))">Profissional</th>
+                    <th @onclick="() => Ordenar(nameof(Contrato.Empresa))">Empresa</th>
+                    <th @onclick="() => Ordenar(nameof(Contrato.Especialidade))">Especialidade</th>
+                    <th>Situação</th>
+                    <th @onclick="() => Ordenar(nameof(Contrato.VigenciaFim))">Vigência</th>
+                    <th>Vencimento</th>
+                    <th>Aditivos</th>
+                </tr>
+            </thead>
+            <tbody>
+                <Virtualize Items="_contratos" Context="contrato" ItemSize="44">
+                    <tr @onclick="() => AbrirDetalhe(contrato.Id)">
+                        <td class="tarja-celula">
+                            <span class="tarja" style="background:@DescricoesSituacao.Cor(contrato.Situacao)"></span>
+                        </td>
+                        <td>@(contrato.Profissional ?? "—")</td>
+                        <td>@(contrato.Empresa ?? "—")</td>
+                        <td>@(contrato.Especialidade ?? "—")</td>
+                        <td><EtiquetaSituacao Situacao="contrato.Situacao" /></td>
+                        <td>@(RegrasContrato.VigenciaEfetiva(contrato)?.ToString("dd/MM/yyyy") ?? "—")</td>
+                        <td>
+                            <SeloVencimento Contrato="contrato" Hoje="Estado.Hoje"
+                                            DiasAlerta="Configuracoes.DiasAlerta" />
+                        </td>
+                        <td class="numero">
+                            @(contrato.Aditivos.Count == 0 ? "—" : contrato.Aditivos.Count.ToString())
+                            @if (contrato.Aditivos.Any(RegrasContrato.AditivoEstaPendente))
+                            {
+                                <span class="selo-vencimento avencer" style="margin-left:var(--espaco-2)">pendente</span>
+                            }
+                        </td>
+                    </tr>
+                </Virtualize>
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (_detalheAberto)
+{
+    <DetalheContrato ContratoId="_idSelecionado" AoFechar="FecharDetalhe" />
+}
+
+@code {
+    private readonly FiltroContratos _filtro = new();
+    private List<Contrato> _contratos = new();
+    private bool _detalheAberto;
+    private int? _idSelecionado;
+    private string _ordenarPor = nameof(Contrato.Profissional);
+    private bool _ordemCrescente = true;
+
+    protected override void OnInitialized()
+    {
+        var consulta = QueryHelpers.ParseQuery(new Uri(Navegacao.Uri).Query);
+
+        if (consulta.TryGetValue("recorte", out var recorte)
+            && Enum.TryParse(recorte.ToString(), out RecortePainel valorRecorte))
+            _filtro.Recorte = valorRecorte;
+
+        if (consulta.TryGetValue("busca", out var busca))
+            _filtro.Busca = busca.ToString();
+
+        Recarregar();
+    }
+
+    private void Recarregar()
+    {
+        _contratos = Repositorio.Listar(_filtro, Estado.Hoje, Configuracoes.DiasAlerta);
+        AplicarOrdem();
+    }
+
+    private void AplicarOrdem()
+    {
+        Func<Contrato, object?> chave = _ordenarPor switch
+        {
+            nameof(Contrato.Empresa) => c => c.Empresa,
+            nameof(Contrato.Especialidade) => c => c.Especialidade,
+            nameof(Contrato.VigenciaFim) => c => RegrasContrato.VigenciaEfetiva(c),
+            _ => c => c.Profissional,
+        };
+
+        _contratos = (_ordemCrescente
+            ? _contratos.OrderBy(chave)
+            : _contratos.OrderByDescending(chave)).ToList();
+    }
+
+    private void Ordenar(string campo)
+    {
+        if (_ordenarPor == campo) _ordemCrescente = !_ordemCrescente;
+        else { _ordenarPor = campo; _ordemCrescente = true; }
+        AplicarOrdem();
+    }
+
+    private void AoDigitar(ChangeEventArgs evento)
+    {
+        _filtro.Busca = evento.Value?.ToString();
+        Recarregar();
+    }
+
+    private void AoMudarSituacao(ChangeEventArgs evento)
+    {
+        string valor = evento.Value?.ToString() ?? "";
+        _filtro.Situacao = Enum.TryParse(valor, out Situacao situacao) ? situacao : null;
+        Recarregar();
+    }
+
+    private void AoMudarVigencia(ChangeEventArgs evento)
+    {
+        _filtro.Vigencia = Enum.TryParse(evento.Value?.ToString(), out RecorteVigencia recorte)
+            ? recorte : RecorteVigencia.Todos;
+        Recarregar();
+    }
+
+    private void AoMudarEspecialidade(ChangeEventArgs evento)
+    {
+        string valor = evento.Value?.ToString() ?? "";
+        _filtro.Especialidade = string.IsNullOrEmpty(valor) ? null : valor;
+        Recarregar();
+    }
+
+    private void AoMudarEmpresa(ChangeEventArgs evento)
+    {
+        string valor = evento.Value?.ToString() ?? "";
+        _filtro.Empresa = string.IsNullOrEmpty(valor) ? null : valor;
+        Recarregar();
+    }
+
+    private void LimparFiltros()
+    {
+        _filtro.Busca = null;
+        _filtro.Situacao = null;
+        _filtro.Especialidade = null;
+        _filtro.Empresa = null;
+        _filtro.Vigencia = RecorteVigencia.Todos;
+        _filtro.Recorte = RecortePainel.Todos;
+
+        // Tira o ?recorte= da barra de endereço junto, senão a tela diz uma coisa e a URL outra.
+        Navegacao.NavigateTo("contratos");
+        Recarregar();
+    }
+
+    private static string RotuloRecorte(RecortePainel recorte) => recorte switch
+    {
+        RecortePainel.Assinados => "Assinados",
+        RecortePainel.Pendentes => "Pendentes de assinatura",
+        RecortePainel.Vencidos => "Vigência vencida",
+        RecortePainel.AVencer => "Vence em breve",
+        RecortePainel.ComProblema => "Com problema ou dúvida",
+        RecortePainel.Inconsistentes => "Assinado mas marcado como aguardando",
+        _ => "Todos",
+    };
+
+    private static string RotuloVigencia(RecorteVigencia vigencia) => vigencia switch
+    {
+        RecorteVigencia.Vencida => "vigência vencida",
+        RecorteVigencia.AVencer => "vigência vencendo",
+        RecorteVigencia.Vigente => "em vigência",
+        RecorteVigencia.SemData => "sem data de vigência",
+        _ => "todas as vigências",
+    };
+
+    private void AbrirDetalhe(int? id)
+    {
+        _idSelecionado = id;
+        _detalheAberto = true;
+    }
+
+    private void FecharDetalhe()
+    {
+        _detalheAberto = false;
+        _idSelecionado = null;
+        Recarregar();
+    }
+
+    private async Task Exportar()
+    {
+        byte[] bytes = ExportadorExcel.Gerar(_contratos, Estado.Hoje, Configuracoes.DiasAlerta);
+        await Js.InvokeVoidAsync("baixarArquivo",
+            ExportadorExcel.NomeSugerido(Estado.Hoje),
+            Convert.ToBase64String(bytes));
+    }
+}

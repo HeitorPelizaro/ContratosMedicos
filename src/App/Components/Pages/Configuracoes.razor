@@ -1,0 +1,65 @@
+@page "/configuracoes"
+@inject ServicoConfiguracoes Servico
+@inject CaminhosApp Caminhos
+
+<div class="cabecalho-pagina">
+    <div>
+        <h1>Configurações</h1>
+        <p>Ajustes do programa e onde os seus dados ficam guardados.</p>
+    </div>
+</div>
+
+<section class="bloco" style="max-width:40rem">
+    <h2>Aviso de vencimento</h2>
+    <div class="campo" style="margin-top:var(--espaco-4)">
+        <label for="dias">Avisar quando faltarem quantos dias para a vigência vencer?</label>
+        <input id="dias" type="number" min="1" max="365" @bind="_dias" />
+    </div>
+    @if (_erro is not null)
+    {
+        <p class="selo-vencimento vencida" style="margin-top:var(--espaco-3)">▲ @_erro</p>
+    }
+    <div style="margin-top:var(--espaco-4)">
+        <button class="botao botao-primario" @onclick="Salvar">Salvar</button>
+    </div>
+</section>
+
+<section class="bloco" style="max-width:40rem;margin-top:var(--espaco-4)">
+    <h2>Seus dados</h2>
+    <p class="cartao-nota">
+        Tudo fica no seu computador, nesta pasta. Para fazer backup, copie a pasta inteira
+        para um pendrive ou para o OneDrive.
+    </p>
+    <div class="lista-itens" style="margin-top:var(--espaco-4)">
+        <div class="item-linha"><span class="cresce">Banco de dados</span><code>@Caminhos.ArquivoBanco</code></div>
+        <div class="item-linha"><span class="cresce">Cópias de segurança</span><code>@Caminhos.PastaBackups</code></div>
+        <div class="item-linha"><span class="cresce">Anexos em PDF</span><code>@Caminhos.PastaAnexos</code></div>
+    </div>
+</section>
+
+@if (_salvo)
+{
+    <div class="aviso-salvo">Salvo</div>
+}
+
+@code {
+    private int _dias;
+    private bool _salvo;
+    private string? _erro;
+
+    protected override void OnInitialized() => _dias = Servico.DiasAlerta;
+
+    private void Salvar()
+    {
+        _erro = null;
+        try
+        {
+            Servico.DefinirDiasAlerta(_dias);
+            _salvo = true;
+        }
+        catch (ArgumentOutOfRangeException falha)
+        {
+            _erro = falha.Message;
+        }
+    }
+}

@@ -1,0 +1,115 @@
+/* Design system do Controle de Contratos Médicos.
+   Regra: nenhum valor mágico. Cor, espaço e raio saem sempre de uma variável. */
+
+@font-face { font-family: "Inter"; font-weight: 400; font-display: swap;
+  src: url("/fontes/inter-400.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 500; font-display: swap;
+  src: url("/fontes/inter-500.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 700; font-display: swap;
+  src: url("/fontes/inter-700.woff2") format("woff2"); }
+
+:root {
+  /* Superfícies e texto */
+  --cor-fundo: #F6F7F9;
+  --cor-superficie: #FFFFFF;
+  --cor-borda: #E3E6EA;
+  --cor-borda-forte: #C9CED6;
+  --cor-texto: #1B2028;
+  --cor-texto-suave: #5B6169;
+  --cor-texto-fraco: #868D96;
+
+  /* Ação */
+  --cor-acao: #0F5C74;
+  --cor-acao-escura: #0B4657;
+  --cor-acao-clara: #E6F1F5;
+
+  /* Semáforo de vigência */
+  --cor-ok: #1B7F4F;
+  --cor-ok-clara: #E7F4ED;
+  --cor-atencao: #9A6700;
+  --cor-atencao-clara: #FFF6E0;
+  --cor-perigo: #B3261E;
+  --cor-perigo-clara: #FDECEA;
+  --cor-neutra-clara: #EFF1F4;
+
+  /* Espaço: escala de 4px, sem exceções */
+  --espaco-1: 0.25rem; --espaco-2: 0.5rem;  --espaco-3: 0.75rem;
+  --espaco-4: 1rem;    --espaco-5: 1.5rem;  --espaco-6: 2rem;
+  --espaco-7: 3rem;
+
+  --raio-1: 4px; --raio-2: 8px; --raio-3: 14px; --raio-cheio: 999px;
+
+  /* Uma única elevação, usada com parcimônia */
+  --sombra-1: 0 1px 2px rgba(27, 32, 40, 0.06), 0 1px 3px rgba(27, 32, 40, 0.04);
+  --sombra-2: 0 8px 24px rgba(27, 32, 40, 0.12);
+
+  /* Tipografia: 6 tamanhos, nada além disso */
+  --texto-xs: 0.75rem; --texto-sm: 0.8125rem; --texto-md: 0.875rem;
+  --texto-lg: 1.0625rem; --texto-xl: 1.375rem; --texto-2xl: 2rem;
+
+  --largura-menu: 15rem;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 16px; }
+
+body {
+  margin: 0;
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: var(--texto-md);
+  line-height: 1.5;
+  color: var(--cor-texto);
+  background: var(--cor-fundo);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -0.01em; }
+h1 { font-size: var(--texto-xl); }
+h2 { font-size: var(--texto-lg); }
+h3 { font-size: var(--texto-md); }
+
+/* Números sempre tabulares: coluna de datas e contadores alinhados */
+.numero, .cartao-numero, .tabela td, .tabela th { font-variant-numeric: tabular-nums; }
+
+a { color: var(--cor-acao); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+:focus-visible { outline: 2px solid var(--cor-acao); outline-offset: 2px; }
+
+/* Casca */
+.aplicacao { display: flex; min-height: 100vh; }
+
+.menu {
+  width: var(--largura-menu); flex: 0 0 var(--largura-menu);
+  background: var(--cor-superficie); border-right: 1px solid var(--cor-borda);
+  display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
+}
+.menu-marca {
+  padding: var(--espaco-5) var(--espaco-4) var(--espaco-4);
+  border-bottom: 1px solid var(--cor-borda);
+}
+.menu-marca strong { display: block; font-size: var(--texto-md); }
+.menu-marca span { color: var(--cor-texto-fraco); font-size: var(--texto-xs); }
+.menu-itens { padding: var(--espaco-3); display: flex; flex-direction: column; gap: var(--espaco-1); }
+.menu-rodape { margin-top: auto; padding: var(--espaco-3); border-top: 1px solid var(--cor-borda); }
+
+.menu-item {
+  display: flex; align-items: center; gap: var(--espaco-3);
+  padding: var(--espaco-3); border-radius: var(--raio-2);
+  color: var(--cor-texto-suave); font-weight: 500; text-decoration: none;
+}
+.menu-item:hover { background: var(--cor-neutra-clara); text-decoration: none; }
+.menu-item.ativo { background: var(--cor-acao-clara); color: var(--cor-acao-escura); }
+.menu-item .contador {
+  margin-left: auto; font-size: var(--texto-xs); font-weight: 700;
+  background: var(--cor-perigo-clara); color: var(--cor-perigo);
+  padding: 0 var(--espaco-2); border-radius: var(--raio-cheio);
+}
+
+.conteudo { flex: 1; min-width: 0; padding: var(--espaco-6); }
+.cabecalho-pagina {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--espaco-4); margin-bottom: var(--espaco-5);
+}
+.cabecalho-pagina p { margin: var(--espaco-1) 0 0; color: var(--cor-texto-suave); }

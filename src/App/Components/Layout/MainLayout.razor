@@ -1,0 +1,23 @@
+@inherits LayoutComponentBase
+
+<div class="aplicacao">
+    <NavMenu />
+    <main class="conteudo">
+        @* Uma falha numa tela não pode derrubar o programa inteiro em branco:
+           a ErrorBoundary troca o conteúdo por um recado em português. *@
+        <ErrorBoundary>
+            <ChildContent>
+                @Body
+            </ChildContent>
+            <ErrorContent>
+                <div class="bloco vazio">
+                    <strong>Algo deu errado nesta tela</strong>
+                    Nada do que você já salvou foi perdido. Recarregue a página para
+                    continuar. Se acontecer de novo sempre no mesmo lugar, avise o suporte
+                    e diga o que estava fazendo.
+                    <p><a class="botao botao-primario" href="">Recarregar a página</a></p>
+                </div>
+            </ErrorContent>
+        </ErrorBoundary>
+    </main>
+</div>

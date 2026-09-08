@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Controle de Contratos Médicos</title>
+    <base href="/" />
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/componentes.css" />
+    <HeadOutlet />
+</head>
+
+<body>
+    <Routes @rendermode="InteractiveServer" />
+
+    @* Gancho padrão do Blazor Server: quando o circuito quebra, o blazor.web.js mostra esta
+       div. Sem ela a tela simplesmente para de responder aos cliques, sem sinal nenhum. *@
+    <div id="blazor-error-ui">
+        <strong>Ocorreu um erro.</strong>
+        Recarregue a página. Os seus dados salvos não foram perdidos.
+        <a href="" class="recarregar">Recarregar agora</a>
+    </div>
+
+    <script src="_framework/blazor.web.js"></script>
+    <script src="js/baixar.js"></script>
+</body>
+
+</html>

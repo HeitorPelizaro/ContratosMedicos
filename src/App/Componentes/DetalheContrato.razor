@@ -1,0 +1,272 @@
+@inject RepositorioContratos Repositorio
+@inject ServicoAnexos Anexos
+@inject ServicoConfiguracoes Configuracoes
+@inject EstadoDaSessao Estado
+
+<div class="fundo-escuro" @onclick="Cancelar"></div>
+
+<aside class="painel-lateral">
+    <header>
+        <div>
+            <h1>@(_contrato.Id == 0 ? "Novo contrato" : _contrato.Profissional ?? "Contrato")</h1>
+            @if (_contrato.Id != 0)
+            {
+                <p class="cartao-nota">
+                    <SeloVencimento Contrato="_contrato" Hoje="Estado.Hoje" DiasAlerta="Configuracoes.DiasAlerta" />
+                    @if (RegrasContrato.TemInconsistencia(_contrato))
+                    {
+                        <span class="selo-vencimento vencida" style="margin-left:var(--espaco-2)">
+                            ▲ Tem data de assinatura mas a situação diz "aguardando"
+                        </span>
+                    }
+                </p>
+            }
+        </div>
+        <button class="botao" @onclick="Cancelar">Fechar</button>
+    </header>
+
+    <div class="corpo">
+        <section class="bloco">
+            <h2>Dados do contrato</h2>
+            <div class="campos-2" style="margin-top:var(--espaco-4)">
+                <div class="campo"><label>Profissional</label><input @bind="_contrato.Profissional" /></div>
+                <div class="campo"><label>Empresa</label><input @bind="_contrato.Empresa" /></div>
+                <div class="campo"><label>CNPJ</label><input @bind="_contrato.Cnpj" /></div>
+                <div class="campo">
+                    <label>Optante Simples Nacional</label>
+                    <select @bind="_optante">
+                        <option value="">Não informado</option>
+                        <option value="sim">Sim</option>
+                        <option value="nao">Não</option>
+                    </select>
+                </div>
+                <div class="campo"><label>Especialidade</label><input @bind="_contrato.Especialidade" /></div>
+                <div class="campo"><label>Área de atuação</label><input @bind="_contrato.AreaAtuacao" /></div>
+                <div class="campo"><label>Edital</label><input @bind="_contrato.Edital" /></div>
+                <div class="campo"><label>Código contrato Tasy</label><input @bind="_contrato.CodigoContratoTasy" /></div>
+                <div class="campo"><label>Contrato original</label><input @bind="_contrato.ContratoOriginal" /></div>
+                <div class="campo">
+                    <label>Data de assinatura do contrato original</label>
+                    <input type="date" @bind="_contrato.DataAssinaturaOriginal" />
+                </div>
+                <div class="campo">
+                    <label>Vigência (data final)</label>
+                    <input type="date" @bind="_contrato.VigenciaFim" />
+                </div>
+                <div class="campo">
+                    <label>Situação</label>
+                    <select @bind="_contrato.Situacao">
+                        @foreach (Situacao situacao in DescricoesSituacao.Todas)
+                        {
+                            <option value="@situacao">@DescricoesSituacao.Rotulo(situacao)</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="campo" style="margin-top:var(--espaco-4)">
+                <label>Cadastro regras e critérios / repasse honorários médicos</label>
+                <textarea rows="2" @bind="_contrato.CadastroRegrasCriterios"></textarea>
+            </div>
+            <div class="campo" style="margin-top:var(--espaco-4)">
+                <label>Observação</label>
+                <textarea rows="2" @bind="_contrato.Observacao"></textarea>
+            </div>
+        </section>
+
+        <section class="bloco">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                <h2>Aditivos (@_contrato.Aditivos.Count)</h2>
+                <button class="botao" @onclick="AdicionarAditivo">Adicionar aditivo</button>
+            </div>
+            @if (_contrato.Aditivos.Count == 0)
+            {
+                <p class="cartao-nota" style="margin-top:var(--espaco-3)">
+                    Nenhum aditivo. Aditivo de valor fora da época de renovação também entra aqui.
+                </p>
+            }
+            else
+            {
+                <div class="lista-itens" style="margin-top:var(--espaco-4)">
+                    @foreach (Aditivo aditivo in _contrato.Aditivos.ToList())
+                    {
+                        <EditorAditivo Aditivo="aditivo" AoRemover="() => RemoverAditivo(aditivo)" />
+                    }
+                </div>
+                <p class="cartao-nota" style="margin-top:var(--espaco-3)">
+                    Vigência valendo hoje:
+                    <strong>@(RegrasContrato.VigenciaEfetiva(_contrato)?.ToString("dd/MM/yyyy") ?? "sem data")</strong>
+                    (o último aditivo de vigência assinado manda).
+                </p>
+            }
+        </section>
+
+        <section class="bloco">
+            <h2>Anexos</h2>
+            <div class="area-arraste" style="margin-top:var(--espaco-4)">
+                <InputFile OnChange="AoEscolherArquivos" multiple accept=".pdf" />
+                <p class="cartao-nota">Escolha ou arraste os PDFs do contrato e dos aditivos.</p>
+            </div>
+            @if (_contrato.Anexos.Count > 0)
+            {
+                <div class="lista-itens" style="margin-top:var(--espaco-4)">
+                    @foreach (Anexo anexo in _contrato.Anexos.ToList())
+                    {
+                        <div class="item-linha">
+                            <span class="cresce">@anexo.NomeArquivo</span>
+                            <button class="botao" @onclick="() => Anexos.AbrirNoSistema(anexo)">Abrir</button>
+                            <button class="botao botao-perigo" @onclick="() => RemoverAnexo(anexo)">Excluir</button>
+                        </div>
+                    }
+                </div>
+            }
+        </section>
+
+        @if (_contrato.Id != 0 && _historico.Count > 0)
+        {
+            <section class="bloco">
+                <h2>Histórico</h2>
+                <div class="lista-itens" style="margin-top:var(--espaco-4)">
+                    @foreach (HistoricoAlteracao registro in _historico)
+                    {
+                        <div class="item-linha">
+                            <span class="cresce">@registro.Descricao</span>
+                            <span class="cartao-nota numero">@registro.QuandoEm.ToString("dd/MM/yyyy HH:mm")</span>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+
+    <footer>
+        @if (_contrato.Id != 0)
+        {
+            @if (_confirmandoExclusao)
+            {
+                <span class="cartao-nota" style="margin-right:auto">
+                    Excluir este contrato e todos os aditivos e anexos dele? Não tem como desfazer.
+                </span>
+                <button class="botao" @onclick="() => _confirmandoExclusao = false">Cancelar</button>
+                <button class="botao botao-perigo" @onclick="Excluir">Sim, excluir</button>
+            }
+            else
+            {
+                <button class="botao botao-perigo" style="margin-right:auto"
+                        @onclick="() => _confirmandoExclusao = true">Excluir contrato</button>
+            }
+        }
+        <button class="botao" @onclick="Cancelar">Cancelar</button>
+        <button class="botao botao-primario" @onclick="Salvar">Salvar</button>
+    </footer>
+</aside>
+
+@if (_mensagemSalvo is not null)
+{
+    <div class="aviso-salvo">@_mensagemSalvo</div>
+}
+
+@code {
+    [Parameter] public int? ContratoId { get; set; }
+    [Parameter] public EventCallback AoFechar { get; set; }
+
+    private Contrato _contrato = new();
+    private List<HistoricoAlteracao> _historico = new();
+    private bool _confirmandoExclusao;
+    private string? _mensagemSalvo;
+    private string _optante = "";
+    private readonly List<Anexo> _anexosNovos = new();
+    private readonly List<Anexo> _anexosParaApagarAoSalvar = new();
+    private Situacao _situacaoOriginal;
+    private DateOnly? _vigenciaOriginal;
+
+    protected override void OnInitialized()
+    {
+        _contrato = ContratoId is null ? new Contrato() : Repositorio.PorId(ContratoId.Value) ?? new Contrato();
+        _historico = _contrato.Id == 0 ? new() : Repositorio.Historico(_contrato.Id);
+        _optante = _contrato.OptanteSimplesNacional switch { true => "sim", false => "nao", _ => "" };
+        _situacaoOriginal = _contrato.Situacao;
+        _vigenciaOriginal = _contrato.VigenciaFim;
+    }
+
+    private void AdicionarAditivo() =>
+        _contrato.Aditivos.Add(new Aditivo { Tipo = TipoAditivo.Vigencia, Situacao = Situacao.TaVigenciaAguardandoAssinatura });
+
+    private void RemoverAditivo(Aditivo aditivo) => _contrato.Aditivos.Remove(aditivo);
+
+    private async Task AoEscolherArquivos(InputFileChangeEventArgs evento)
+    {
+        foreach (IBrowserFile arquivo in evento.GetMultipleFiles(20))
+        {
+            await using Stream conteudo = arquivo.OpenReadStream(maxAllowedSize: 40 * 1024 * 1024);
+            Anexo anexo = await Anexos.SalvarAsync(conteudo, arquivo.Name);
+            _contrato.Anexos.Add(anexo);
+            _anexosNovos.Add(anexo);
+        }
+    }
+
+    /// <summary>
+    /// Tira o anexo da lista, mas só apaga o PDF do disco quando a usuária salvar. Se ela
+    /// cancelar, o arquivo continua ali e a linha do banco continua apontando para ele.
+    /// </summary>
+    private void RemoverAnexo(Anexo anexo)
+    {
+        _contrato.Anexos.Remove(anexo);
+        if (_anexosNovos.Remove(anexo)) Anexos.Excluir(anexo);  // nunca chegou ao banco
+        else _anexosParaApagarAoSalvar.Add(anexo);
+    }
+
+    private async Task Salvar()
+    {
+        _contrato.OptanteSimplesNacional = _optante switch { "sim" => true, "nao" => false, _ => null };
+
+        Repositorio.Salvar(_contrato, MontarDescricaoDoHistorico());
+
+        // Só agora, com o banco já gravado, os PDFs removidos saem do disco.
+        foreach (Anexo anexo in _anexosParaApagarAoSalvar) Anexos.Excluir(anexo);
+        _anexosParaApagarAoSalvar.Clear();
+        _anexosNovos.Clear();
+
+        _mensagemSalvo = "Salvo";
+        StateHasChanged();
+        await Task.Delay(1200);
+        await AoFechar.InvokeAsync();
+    }
+
+    /// <summary>
+    /// Cancelar / Fechar joga a edição fora de verdade: o contrato desta tela é uma cópia
+    /// solta (o repositório devolve sem rastreamento), então basta não chamar Salvar.
+    /// Só os PDFs anexados nesta sessão e não salvos precisam sair do disco.
+    /// </summary>
+    private async Task Cancelar()
+    {
+        foreach (Anexo anexo in _anexosNovos) Anexos.Excluir(anexo);
+        _anexosNovos.Clear();
+        _anexosParaApagarAoSalvar.Clear();
+        await AoFechar.InvokeAsync();
+    }
+
+    /// <summary>Texto que a usuária entende, não diff técnico.</summary>
+    private string MontarDescricaoDoHistorico()
+    {
+        if (_contrato.Id == 0) return "Contrato cadastrado";
+
+        var partes = new List<string>();
+        if (_situacaoOriginal != _contrato.Situacao)
+            partes.Add($"Situação alterada de \"{DescricoesSituacao.Rotulo(_situacaoOriginal)}\" "
+                       + $"para \"{DescricoesSituacao.Rotulo(_contrato.Situacao)}\"");
+        if (_vigenciaOriginal != _contrato.VigenciaFim)
+            partes.Add($"Vigência alterada de {Formatar(_vigenciaOriginal)} para {Formatar(_contrato.VigenciaFim)}");
+
+        return partes.Count == 0 ? "Contrato editado" : string.Join("; ", partes);
+    }
+
+    private static string Formatar(DateOnly? data) => data?.ToString("dd/MM/yyyy") ?? "sem data";
+
+    private async Task Excluir()
+    {
+        foreach (Anexo anexo in Repositorio.AnexosDoContrato(_contrato.Id)) Anexos.Excluir(anexo);
+        foreach (Anexo anexo in _anexosNovos) Anexos.Excluir(anexo);
+        Repositorio.Excluir(_contrato.Id);
+        await AoFechar.InvokeAsync();
+    }
+}

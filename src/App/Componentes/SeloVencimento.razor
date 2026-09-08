@@ -1,0 +1,42 @@
+@* Cor + ícone + texto: legível para quem não distingue cores e na impressão em P&B. *@
+<span class="selo-vencimento @Classe" title="@Titulo">@Icone @Texto</span>
+
+@code {
+    [Parameter, EditorRequired] public Contrato Contrato { get; set; } = default!;
+    [Parameter, EditorRequired] public DateOnly Hoje { get; set; }
+    [Parameter] public int DiasAlerta { get; set; } = 30;
+
+    private ClassificacaoVigencia Classificacao =>
+        RegrasContrato.ClassificarVigencia(Contrato, Hoje, DiasAlerta);
+
+    private int? Dias => RegrasContrato.DiasParaVencer(Contrato, Hoje);
+
+    private string Classe => Classificacao switch
+    {
+        ClassificacaoVigencia.Vencida => "vencida",
+        ClassificacaoVigencia.AVencer => "avencer",
+        ClassificacaoVigencia.Vigente => "vigente",
+        _ => "semdata",
+    };
+
+    private string Icone => Classificacao switch
+    {
+        ClassificacaoVigencia.Vencida => "▲",
+        ClassificacaoVigencia.AVencer => "●",
+        ClassificacaoVigencia.Vigente => "✓",
+        _ => "–",
+    };
+
+    private string Texto => Classificacao switch
+    {
+        ClassificacaoVigencia.Vencida => $"Vencido há {Math.Abs(Dias!.Value)} dia(s)",
+        ClassificacaoVigencia.AVencer when Dias == 0 => "Vence hoje",
+        ClassificacaoVigencia.AVencer => $"Vence em {Dias} dia(s)",
+        ClassificacaoVigencia.Vigente => "Em vigência",
+        _ => "Sem data de vigência",
+    };
+
+    private string Titulo => RegrasContrato.VigenciaEfetiva(Contrato) is DateOnly data
+        ? $"Vigência até {data:dd/MM/yyyy}"
+        : "Vigência não informada";
+}

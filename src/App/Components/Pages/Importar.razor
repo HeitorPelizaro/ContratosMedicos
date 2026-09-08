@@ -1,0 +1,340 @@
+@page "/importar"
+@inject ServicoImportacao Importador
+@inject ServicoConfiguracoes Configuracoes
+@inject CaminhosApp Caminhos
+@inject NavigationManager Navegacao
+
+<div class="cabecalho-pagina">
+    <div>
+        <h1>Importar planilha</h1>
+        <p>Passo @_passo de 4. A sua planilha não é alterada — o programa só lê.</p>
+    </div>
+</div>
+
+@if (_passo == 1)
+{
+    <section class="bloco">
+        <h2>1. Escolher o arquivo</h2>
+        <div class="area-arraste" style="margin-top:var(--espaco-4)">
+            <InputFile OnChange="AoEscolherArquivo" accept=".xlsx,.xlsm,.xls,.csv" />
+            <p class="cartao-nota">
+                Aceita Excel (.xlsx, .xlsm, .xls) e arquivo de texto (.csv). Até 60 MB.
+            </p>
+        </div>
+        @if (_erro is not null)
+        {
+            <p class="selo-vencimento vencida" style="margin-top:var(--espaco-4)">▲ @_erro</p>
+        }
+    </section>
+}
+else if (_passo == 2 && _planilha is not null)
+{
+    <section class="bloco">
+        <h2>2. Conferir as colunas</h2>
+        <p class="cartao-nota">
+            O programa já adivinhou pelo nome do cabeçalho. Corrija o que estiver errado.
+        </p>
+
+        <div class="lista-itens" style="margin-top:var(--espaco-4)">
+            @for (int coluna = 0; coluna < _planilha.Cabecalhos.Count; coluna++)
+            {
+                int indice = coluna;
+                <div class="item-linha">
+                    <span class="cresce"><strong>@_planilha.Cabecalhos[indice]</strong></span>
+                    <select @onchange="e => DefinirCampo(indice, e)">
+                        @foreach (CampoContrato campo in Enum.GetValues<CampoContrato>())
+                        {
+                            <option value="@campo" selected="@(_mapeamento!.PorColuna[indice] == campo)">
+                                @RotulosCampo.Rotulo(campo)
+                            </option>
+                        }
+                    </select>
+                </div>
+            }
+        </div>
+
+        <h3 style="margin-top:var(--espaco-5)">Prévia das primeiras linhas</h3>
+        <div class="tabela-envolve" style="margin-top:var(--espaco-3);max-height:20rem">
+            <table class="tabela">
+                <thead>
+                    <tr>@foreach (string cabecalho in _planilha.Cabecalhos) { <th>@cabecalho</th> }</tr>
+                </thead>
+                <tbody>
+                    @foreach (LinhaPlanilha linha in _planilha.Linhas.Take(20))
+                    {
+                        <tr>
+                            @foreach (string celula in linha.Celulas) { <td>@celula</td> }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (_planilha.CoresSemLegenda.Count > 0)
+        {
+            <h3 style="margin-top:var(--espaco-5)">Cores que não estão na legenda</h3>
+            <p class="cartao-nota">Diga o que cada cor significa, ou deixe como "não classificado".</p>
+            <div class="lista-itens" style="margin-top:var(--espaco-3)">
+                @foreach (string cor in _planilha.CoresSemLegenda)
+                {
+                    string chave = cor;
+                    <div class="item-linha">
+                        <span class="tarja" style="background:@CorVisivel(chave)"></span>
+                        <span class="cresce">@chave</span>
+                        <select @onchange="e => DefinirCor(chave, e)">
+                            @foreach (Situacao situacao in DescricoesSituacao.Todas)
+                            {
+                                <option value="@situacao">@DescricoesSituacao.Rotulo(situacao)</option>
+                            }
+                        </select>
+                    </div>
+                }
+            </div>
+        }
+
+        <div style="display:flex;gap:var(--espaco-3);justify-content:flex-end;margin-top:var(--espaco-5)">
+            <button class="botao" @onclick="() => _passo = 1">Voltar</button>
+            <button class="botao botao-primario" @onclick="Validar">Conferir os dados</button>
+        </div>
+    </section>
+}
+else if (_passo == 3 && _validacao is not null)
+{
+    <section class="bloco">
+        <h2>3. Relatório antes de gravar</h2>
+        <div class="cartoes" style="margin-top:var(--espaco-4)">
+            <div class="cartao ok">
+                <span class="cartao-rotulo">Contratos prontos para importar</span>
+                <span class="cartao-numero">@_validacao.Contratos.Count</span>
+            </div>
+            <div class="cartao atencao">
+                <span class="cartao-rotulo">Avisos</span>
+                <span class="cartao-numero">@_validacao.Avisos.Count</span>
+                <span class="cartao-nota">Nada é descartado: tudo entra e fica sinalizado.</span>
+            </div>
+            <div class="cartao">
+                <span class="cartao-rotulo">Linhas em branco ignoradas</span>
+                <span class="cartao-numero">@_validacao.LinhasIgnoradas</span>
+            </div>
+            <div class="cartao @(_validacao.ChavesDuplicadas.Count > 0 ? "atencao" : "")">
+                <span class="cartao-rotulo">Contratos repetidos</span>
+                <span class="cartao-numero">@_validacao.ChavesDuplicadas.Count</span>
+            </div>
+        </div>
+
+        @if (_validacao.Avisos.Count > 0)
+        {
+            <h3 style="margin-top:var(--espaco-5)">Avisos</h3>
+            <div class="tabela-envolve" style="margin-top:var(--espaco-3);max-height:22rem">
+                <table class="tabela">
+                    <thead><tr><th>Linha da planilha</th><th>O que aconteceu</th></tr></thead>
+                    <tbody>
+                        @foreach (AvisoImportacao aviso in _validacao.Avisos)
+                        {
+                            <tr><td class="numero">@aviso.NumeroLinha</td><td>@aviso.Mensagem</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <div class="campo" style="margin-top:var(--espaco-5);max-width:32rem">
+            <label>Como gravar</label>
+            <select @bind="_modo" @bind:after="() => _confirmandoSubstituir = false">
+                <option value="@ModoImportacao.AdicionarOuAtualizar">
+                    Adicionar novos e atualizar os que já existem (recomendado)
+                </option>
+                <option value="@ModoImportacao.SubstituirTudo">
+                    Apagar tudo que está no programa e colocar só o que vem da planilha
+                </option>
+            </select>
+        </div>
+
+        <p class="cartao-nota" style="margin-top:var(--espaco-3)">
+            Antes de gravar, o programa faz uma cópia de segurança do banco em
+            <code>@Caminhos.PastaBackups</code>.
+        </p>
+
+        @if (_erro is not null)
+        {
+            <p class="selo-vencimento vencida" style="margin-top:var(--espaco-4)">▲ @_erro</p>
+        }
+
+        @if (_confirmandoSubstituir)
+        {
+            <div class="bloco" style="margin-top:var(--espaco-4);border-color:var(--cor-perigo)">
+                <strong>Tem certeza? Isto apaga o que já está no programa.</strong>
+                <p class="cartao-nota" style="margin-top:var(--espaco-3)">
+                    Você escolheu <em>apagar tudo e colocar só o que vem da planilha</em>.
+                    Vão embora, de todos os contratos que estão hoje no programa:
+                </p>
+                <ul class="cartao-nota" style="margin:var(--espaco-3) 0 0 var(--espaco-5)">
+                    <li>os contratos e os dados que você corrigiu à mão neles;</li>
+                    <li>os aditivos cadastrados aqui dentro (a planilha não os traz de volta);</li>
+                    <li>os PDFs anexados, apagados também do disco;</li>
+                    <li>o histórico de alterações de cada contrato.</li>
+                </ul>
+                <p class="cartao-nota" style="margin-top:var(--espaco-3)">
+                    A cópia de segurança feita antes de gravar fica em
+                    <code>@Caminhos.PastaBackups</code> — é por ela que dá para voltar atrás.
+                </p>
+            </div>
+        }
+
+        <div style="display:flex;gap:var(--espaco-3);justify-content:flex-end;margin-top:var(--espaco-5)">
+            <button class="botao" @onclick="() => _passo = 2">Voltar</button>
+            @if (_confirmandoSubstituir)
+            {
+                <button class="botao" @onclick="() => _confirmandoSubstituir = false">Cancelar</button>
+                <button class="botao botao-perigo" @onclick="Gravar" disabled="@_gravando">
+                    @(_gravando ? "Gravando..." : "Sim, apagar tudo e importar")
+                </button>
+            }
+            else
+            {
+                <button class="botao botao-primario" @onclick="PedirParaGravar" disabled="@_gravando">
+                    @(_gravando ? "Gravando..." : "Importar agora")
+                </button>
+            }
+        </div>
+    </section>
+}
+else if (_passo == 4 && _resultado is not null)
+{
+    <section class="bloco">
+        <h2>4. Pronto</h2>
+        <div class="cartoes" style="margin-top:var(--espaco-4)">
+            <div class="cartao ok"><span class="cartao-rotulo">Contratos incluídos</span>
+                <span class="cartao-numero">@_resultado.Inseridos</span></div>
+            <div class="cartao"><span class="cartao-rotulo">Contratos atualizados</span>
+                <span class="cartao-numero">@_resultado.Atualizados</span></div>
+            <div class="cartao"><span class="cartao-rotulo">Aditivos criados</span>
+                <span class="cartao-numero">@_resultado.AditivosCriados</span></div>
+            @if (_resultado.Removidos > 0)
+            {
+                <div class="cartao perigo"><span class="cartao-rotulo">Contratos removidos</span>
+                    <span class="cartao-numero">@_resultado.Removidos</span></div>
+            }
+        </div>
+        <p class="cartao-nota" style="margin-top:var(--espaco-4)">
+            Cópia de segurança guardada em <code>@_resultado.CaminhoBackup</code>.
+        </p>
+        <div style="display:flex;gap:var(--espaco-3);justify-content:flex-end;margin-top:var(--espaco-5)">
+            <a class="botao" href="atencao">Ver o que precisa de atenção</a>
+            <a class="botao botao-primario" href="">Ir para o painel</a>
+        </div>
+    </section>
+}
+
+@code {
+    private int _passo = 1;
+    private string? _erro;
+    private string? _arquivoTemporario;
+    private PlanilhaLida? _planilha;
+    private MapeamentoColunas? _mapeamento;
+    private ResultadoValidacao? _validacao;
+    private ResultadoImportacao? _resultado;
+    private ModoImportacao _modo = ModoImportacao.AdicionarOuAtualizar;
+    private readonly Dictionary<string, Situacao> _coresEscolhidas = new();
+    private bool _gravando;
+    private bool _confirmandoSubstituir;
+
+    private async Task AoEscolherArquivo(InputFileChangeEventArgs evento)
+    {
+        _erro = null;
+        try
+        {
+            IBrowserFile arquivo = evento.File;
+            _arquivoTemporario = Path.Combine(Path.GetTempPath(),
+                $"importacao-{Guid.NewGuid():N}{Path.GetExtension(arquivo.Name)}");
+
+            await using (FileStream destino = File.Create(_arquivoTemporario))
+            await using (Stream origem = arquivo.OpenReadStream(maxAllowedSize: 60 * 1024 * 1024))
+                await origem.CopyToAsync(destino);
+
+            _planilha = DetectorFormato.Ler(_arquivoTemporario);
+
+            string? salvo = Configuracoes.Obter("mapeamento-colunas");
+            _mapeamento = salvo is null
+                ? MapeamentoColunas.Adivinhar(_planilha.Cabecalhos)
+                : MapeamentoColunas.Desserializar(salvo);
+
+            // Se o mapeamento salvo é de outra planilha, adivinha de novo.
+            if (_mapeamento.PorColuna.Count != _planilha.Cabecalhos.Count)
+                _mapeamento = MapeamentoColunas.Adivinhar(_planilha.Cabecalhos);
+
+            _passo = 2;
+        }
+        catch (NotSupportedException naoSuportado)
+        {
+            _erro = naoSuportado.Message;
+        }
+        catch (Exception falha)
+        {
+            _erro = "Não consegui ler o arquivo. Verifique se ele abre no Excel e tente de novo. "
+                    + $"(detalhe técnico: {falha.Message})";
+        }
+    }
+
+    private void DefinirCampo(int coluna, ChangeEventArgs evento)
+    {
+        if (Enum.TryParse(evento.Value?.ToString(), out CampoContrato campo))
+            _mapeamento!.Definir(coluna, campo);
+    }
+
+    private void DefinirCor(string chaveCor, ChangeEventArgs evento)
+    {
+        if (Enum.TryParse(evento.Value?.ToString(), out Situacao situacao))
+            _coresEscolhidas[chaveCor] = situacao;
+    }
+
+    private void Validar()
+    {
+        _validacao = ValidadorImportacao.Validar(_planilha!, _mapeamento!, _coresEscolhidas);
+        Configuracoes.Definir("mapeamento-colunas", _mapeamento!.Serializar());
+        _passo = 3;
+    }
+
+    /// <summary>
+    /// Apagar tudo é destrutivo e irreversível pela interface — excluir UM contrato já
+    /// pede confirmação, então o modo que apaga todos também pede.
+    /// </summary>
+    private void PedirParaGravar()
+    {
+        if (_modo == ModoImportacao.SubstituirTudo)
+        {
+            _confirmandoSubstituir = true;
+            return;
+        }
+        Gravar();
+    }
+
+    private void Gravar()
+    {
+        _erro = null;
+        _gravando = true;
+        try
+        {
+            _resultado = Importador.Gravar(_validacao!, _modo);
+            _passo = 4;
+        }
+        catch (Exception falha)
+        {
+            _erro = "Não foi possível gravar a importação. Verifique se o programa consegue escrever "
+                    + $"no disco e tente novamente. (detalhe técnico: {falha.Message})";
+        }
+        finally
+        {
+            _gravando = false;
+            _confirmandoSubstituir = false;
+            if (_arquivoTemporario is not null && File.Exists(_arquivoTemporario))
+                File.Delete(_arquivoTemporario);
+        }
+    }
+
+    /// <summary>Mostra a cor da planilha na prévia quando ela é RGB; senão, cinza.</summary>
+    private static string CorVisivel(string chaveCor) =>
+        chaveCor.StartsWith("rgb:", StringComparison.Ordinal)
+            ? "#" + chaveCor[4..]
+            : "var(--cor-borda-forte)";
+}

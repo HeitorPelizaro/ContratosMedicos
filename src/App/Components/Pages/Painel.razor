@@ -1,0 +1,93 @@
+@page "/"
+@inject RepositorioContratos Repositorio
+@inject ServicoConfiguracoes Configuracoes
+@inject EstadoDaSessao Estado
+
+<div class="cabecalho-pagina">
+    <div>
+        <h1>Painel</h1>
+        <p>Situação dos contratos hoje, @Estado.Hoje.ToString("dd/MM/yyyy").</p>
+    </div>
+</div>
+
+@if (_resumo is null)
+{
+    <div class="cartoes">
+        @for (int i = 0; i < 6; i++)
+        {
+            <div class="cartao"><div class="esqueleto" style="width:60%"></div>
+                <div class="esqueleto" style="width:35%;height:2rem"></div></div>
+        }
+    </div>
+}
+else if (_resumo.Total == 0)
+{
+    <div class="bloco vazio">
+        <strong>Nenhum contrato cadastrado ainda</strong>
+        Importe a sua planilha para começar — leva menos de um minuto.
+        <p><a class="botao botao-primario" href="importar">Importar planilha</a></p>
+    </div>
+}
+else
+{
+    <div class="cartoes">
+        <CartaoNumero Rotulo="Total de contratos" Numero="_resumo.Total" Destino="contratos" />
+        <CartaoNumero Rotulo="Assinados" Numero="_resumo.Assinados" Tom="ok"
+                      Destino="contratos?recorte=Assinados" />
+        <CartaoNumero Rotulo="Pendentes de assinatura" Numero="_resumo.PendentesDeAssinatura"
+                      Tom="atencao" Destino="contratos?recorte=Pendentes" />
+        <CartaoNumero Rotulo="Vigência vencida" Numero="_resumo.Vencidos" Tom="perigo"
+                      Destino="contratos?recorte=Vencidos" />
+        <CartaoNumero Rotulo="@($"Vence em até {Configuracoes.DiasAlerta} dias")" Numero="_resumo.AVencer"
+                      Tom="atencao" Destino="contratos?recorte=AVencer" />
+        <CartaoNumero Rotulo="Com problema ou dúvida" Numero="_resumo.ComProblema"
+                      Destino="contratos?recorte=ComProblema" />
+    </div>
+
+    @if (_resumo.SemData > 0 || _resumo.Inconsistentes > 0)
+    {
+        <p class="cartao-nota" style="margin-top:var(--espaco-4)">
+            @if (_resumo.SemData > 0)
+            {
+                <span>@_resumo.SemData contrato(s) sem data de vigência. </span>
+            }
+            @if (_resumo.Inconsistentes > 0)
+            {
+                <span>@_resumo.Inconsistentes com data de assinatura mas situação de "aguardando". </span>
+            }
+            <a href="atencao">Ver na tela Atenção</a>
+        </p>
+    }
+
+    <div class="blocos-2" style="margin-top:var(--espaco-5)">
+        <section class="bloco">
+            <h2>Por situação</h2>
+            <GraficoRosca Fatias="@FatiasPorSituacao()" />
+        </section>
+        <section class="bloco">
+            <h2>Vencimentos nos próximos 6 meses</h2>
+            <GraficoBarras Colunas="@ColunasDeVencimento()" />
+        </section>
+    </div>
+}
+
+@code {
+    private ResumoPainel? _resumo;
+
+    protected override void OnInitialized() =>
+        _resumo = Repositorio.Resumo(Estado.Hoje, Configuracoes.DiasAlerta);
+
+    private IReadOnlyList<GraficoRosca.Fatia> FatiasPorSituacao() =>
+        DescricoesSituacao.Todas
+            .Select(s => new GraficoRosca.Fatia(
+                DescricoesSituacao.Rotulo(s),
+                _resumo!.PorSituacao[s],
+                DescricoesSituacao.Cor(s)))
+            .ToList();
+
+    private IReadOnlyList<GraficoBarras.Coluna> ColunasDeVencimento() =>
+        _resumo!.ProximosMeses
+            .Select(m => new GraficoBarras.Coluna(
+                new DateOnly(m.Ano, m.Mes, 1).ToString("MMM/yy"), m.Quantidade))
+            .ToList();
+}
